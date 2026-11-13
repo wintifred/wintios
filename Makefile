@@ -5,7 +5,7 @@ CFLAGS  := -m32 -std=gnu11 -O2 -Wall -Wextra -ffreestanding -fno-pic -fno-pie -f
 LDFLAGS := -m elf_i386 -T linker.ld --oformat binary -nostdlib
 BUILD   := build
 CSRC    := $(wildcard kernel/*.c)
-ASRC    := kernel/entry.asm kernel/isr.asm
+ASRC    := kernel/entry.asm kernel/isr.asm kernel/switch.asm
 OBJ     := $(patsubst kernel/%.c,$(BUILD)/%.o,$(CSRC)) $(patsubst kernel/%.asm,$(BUILD)/%.ao,$(ASRC))
 
 all: $(BUILD)/wintios.img

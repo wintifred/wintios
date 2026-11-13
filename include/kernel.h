@@ -62,6 +62,21 @@ void kfree(void *p);
 struct heap_stats { uint32_t arena_bytes, used_bytes, free_bytes, used_blocks, free_blocks; };
 void heap_get_stats(struct heap_stats *s);
 
+/* ---- interrupt-safe critical sections ---- */
+static inline uint32_t irq_save(void) { uint32_t f; __asm__ volatile("pushf; pop %0; cli" : "=r"(f) :: "memory"); return f; }
+static inline void irq_restore(uint32_t f) { if (f & 0x200) __asm__ volatile("sti" ::: "memory"); }
+
+/* ---- scheduler ---- */
+void sched_init(void);
+void sched_tick(void);
+int  thread_create(const char *name, void (*fn)(void *), void *arg);   /* id, or -1 */
+void thread_yield(void);
+void thread_sleep_ms(uint32_t ms);
+void thread_exit(void) __attribute__((noreturn));
+int  thread_kill(int id);
+void thread_list(void);
+volatile uint32_t *thread_counter(void);
+
 /* ---- libc-ish ---- */
 void *memset(void *d, int c, size_t n);
 void *memcpy(void *d, const void *s, size_t n);

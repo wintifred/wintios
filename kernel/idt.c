@@ -58,6 +58,6 @@ void panic(const char *msg, struct regs *r) {
 void isr_handler(struct regs *r) {
     if (r->int_no < 32) panic(exc_names[r->int_no], r);
     uint8_t irq = (uint8_t)(r->int_no - 32);
+    pic_eoi(irq);                            /* EOI first: the handler (timer) may switch threads */
     if (handlers[irq]) handlers[irq](r);
-    pic_eoi(irq);
 }

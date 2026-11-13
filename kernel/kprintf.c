@@ -1,9 +1,11 @@
 #include "kernel.h"
 
 void kputc(char c) {
+    uint32_t f = irq_save();
     vga_putc(c);
     if (c == '\n') serial_putc('\r');
     serial_putc(c);
+    irq_restore(f);
 }
 static void put_num(uint32_t v, uint32_t base, int upper, int width, char pad) {
     char buf[32]; int n = 0;
@@ -40,4 +42,8 @@ static void kvprintf(const char *f, va_list ap) {
         }
     }
 }
-void kprintf(const char *fmt, ...) { va_list ap; va_start(ap, fmt); kvprintf(fmt, ap); va_end(ap); }
+void kprintf(const char *fmt, ...) {
+    uint32_t f = irq_save();                 /* whole call is atomic w.r.t. preemption */
+    va_list ap; va_start(ap, fmt); kvprintf(fmt, ap); va_end(ap);
+    irq_restore(f);
+}

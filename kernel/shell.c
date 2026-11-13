@@ -44,6 +44,17 @@ static void cmd_memtest(void) {
     heap_get_stats(&h);
     kprintf("freed all: %u used blocks, %u free block(s) after coalescing\n", h.used_blocks, h.free_blocks);
 }
+static void worker(void *arg) {
+    char id = (char)(uint32_t)arg;
+    uint32_t ms = 150 + (uint32_t)(id - 'A') * 150;
+    for (int i = 1; i <= 5; i++) { kprintf("[%c] step %d\n", id, i); thread_sleep_ms(ms); }
+}
+static void spinner(void *arg) { (void)arg; volatile uint32_t *c = thread_counter(); for (;;) (*c)++; }
+static void cmd_threads(void) {
+    static const char *names[] = { "worker-A", "worker-B", "worker-C" };
+    for (int i = 0; i < 3; i++)
+        if (thread_create(names[i], worker, (void *)(uint32_t)('A' + i)) < 0) kprintf("thread_create failed\n");
+}
 static void cmd_crash(void) { __asm__ volatile("xor %%edx,%%edx\n mov $1,%%eax\n xor %%ecx,%%ecx\n div %%ecx" ::: "eax", "ecx", "edx"); }  /* forces #DE */
 
 void shell_run(void) {
@@ -54,7 +65,7 @@ void shell_run(void) {
         int argc = split(line, argv, 8);
         if (!argc) continue;
         if (!strcmp(argv[0], "help"))
-            kprintf("help clear mem memtest uptime sleep <ms> alloc <bytes> echo <txt> crash reboot\n");
+            kprintf("help clear mem memtest uptime sleep <ms> alloc <bytes> echo <txt> threads spin ps kill <id> crash reboot\n");
         else if (!strcmp(argv[0], "clear")) vga_clear();
         else if (!strcmp(argv[0], "mem")) cmd_mem();
         else if (!strcmp(argv[0], "memtest")) cmd_memtest();
@@ -62,6 +73,10 @@ void shell_run(void) {
         else if (!strcmp(argv[0], "sleep") && argc > 1) { pit_sleep_ms(atou(argv[1])); kprintf("done\n"); }
         else if (!strcmp(argv[0], "alloc") && argc > 1) { void *p = kmalloc(atou(argv[1])); kprintf("kmalloc -> %p\n", p); }
         else if (!strcmp(argv[0], "echo")) { for (int i = 1; i < argc; i++) kprintf("%s%c", argv[i], i + 1 < argc ? ' ' : '\n'); if (argc == 1) kputc('\n'); }
+        else if (!strcmp(argv[0], "threads")) cmd_threads();
+        else if (!strcmp(argv[0], "spin")) { int id = thread_create("spinner", spinner, NULL); kprintf("spinner -> thread %d (never yields; preemption keeps the shell alive)\n", id); }
+        else if (!strcmp(argv[0], "ps")) thread_list();
+        else if (!strcmp(argv[0], "kill") && argc > 1) kprintf("%s\n", thread_kill((int)atou(argv[1])) ? "no such killable thread" : "killed");
         else if (!strcmp(argv[0], "crash")) cmd_crash();
         else if (!strcmp(argv[0], "reboot")) { outb(0x64, 0xFE); for (;;) __asm__ volatile("hlt"); }
         else kprintf("unknown command: %s\n", argv[0]);

@@ -1,7 +1,7 @@
 #include "kernel.h"
 static volatile uint32_t ticks;
 static uint32_t freq;
-static void tick(struct regs *r) { (void)r; ticks++; }
+static void tick(struct regs *r) { (void)r; ticks++; sched_tick(); }
 void pit_init(uint32_t hz) {
     freq = hz;
     uint32_t div = 1193182 / hz;

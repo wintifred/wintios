@@ -8,7 +8,7 @@ static void ok(const char *s) { vga_set_color(0x0A); kprintf("[ ok ] "); vga_set
 void kmain(void) {
     serial_init();
     vga_init();
-    vga_set_color(0x0E); kprintf("WintiOS v0.1 - 32-bit x86\n\n"); vga_set_color(0x07);
+    vga_set_color(0x0E); kprintf("WintiOS v0.2 - 32-bit x86\n\n"); vga_set_color(0x07);
     gdt_init();  ok("GDT loaded");
     idt_init();  pic_init(); ok("IDT + PIC remapped");
     kprintf("BIOS E820 memory map (%u entries):\n", E820_COUNT);
@@ -16,6 +16,7 @@ void kmain(void) {
     pmm_init(E820_TABLE, E820_COUNT, (uint32_t)&_kernel_end);
     ok("physical memory manager");
     heap_init(); ok("kmalloc heap");
+    sched_init(); ok("scheduler (round-robin, 50 ms slice)");
     pit_init(100); ok("PIT timer @ 100 Hz");
     keyboard_init(); ok("keyboard driver");
     sti();

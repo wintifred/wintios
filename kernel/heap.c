@@ -35,7 +35,7 @@ static int grow(uint32_t need) {
 }
 void heap_init(void) { head = tail = NULL; arena = 0; grow(0); }
 
-void *kmalloc(size_t n) {
+static void *kmalloc_locked(size_t n) {
     if (!n) return NULL;
     uint32_t need = ((uint32_t)n + 15) & ~15u;
     for (;;) {
@@ -54,8 +54,9 @@ void *kmalloc(size_t n) {
         if (!grow(need)) return NULL;
     }
 }
+void *kmalloc(size_t n) { uint32_t f = irq_save(); void *p = kmalloc_locked(n); irq_restore(f); return p; }
 void *kcalloc(size_t n, size_t sz) { void *p = kmalloc(n * sz); if (p) memset(p, 0, n * sz); return p; }
-void kfree(void *p) {
+static void kfree_locked(void *p) {
     if (!p) return;
     blk_t *b = (blk_t *)p - 1;
     if (b->magic == MAGIC_FREE) panic("kfree: double free", NULL);
@@ -64,10 +65,13 @@ void kfree(void *p) {
     if (b->next && b->next->magic == MAGIC_FREE && adjacent(b, b->next)) merge_next(b);
     if (b->prev && b->prev->magic == MAGIC_FREE && adjacent(b->prev, b)) merge_next(b->prev);
 }
+void kfree(void *p) { uint32_t f = irq_save(); kfree_locked(p); irq_restore(f); }
 void heap_get_stats(struct heap_stats *s) {
+    uint32_t f = irq_save();
     memset(s, 0, sizeof(*s)); s->arena_bytes = arena;
     for (blk_t *b = head; b; b = b->next) {
         if (b->magic == MAGIC_USED) { s->used_bytes += b->size; s->used_blocks++; }
         else { s->free_bytes += b->size; s->free_blocks++; }
     }
+    irq_restore(f);
 }
